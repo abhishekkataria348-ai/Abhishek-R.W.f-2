@@ -1,0 +1,118 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+#define TEMP_PIN 2
+#define FLOW_PIN 3
+#define TDS_PIN A0
+#define TRIG_PIN 9
+#define ECHO_PIN 10
+
+#define RELAY_PUMP1 7
+#define RELAY_PUMP2 8
+
+LiquidCrystal_I2C lcd(0x27,16,2);
+
+OneWire oneWire(TEMP_PIN);
+DallasTemperature tempSensor(&oneWire);
+
+volatile int flowPulse = 0;
+float liters = 0;
+
+void flowCounter()
+{
+  flowPulse++;
+}
+
+void setup()
+{
+  Serial.begin(9600);
+
+  pinMode(TRIG_PIN,OUTPUT);
+  pinMode(ECHO_PIN,INPUT);
+
+  pinMode(RELAY_PUMP1,OUTPUT);
+  pinMode(RELAY_PUMP2,OUTPUT);
+
+  digitalWrite(RELAY_PUMP1,LOW);
+  digitalWrite(RELAY_PUMP2,LOW);
+
+  pinMode(FLOW_PIN,INPUT);
+  attachInterrupt(digitalPinToInterrupt(FLOW_PIN),flowCounter,RISING);
+
+  lcd.init();
+  lcd.backlight();
+
+  tempSensor.begin();
+}
+
+void loop()
+{
+
+  // Temperature
+  tempSensor.requestTemperatures();
+  float temperature = tempSensor.getTempCByIndex(0);
+
+  // TDS
+  int tdsRaw = analogRead(TDS_PIN);
+  float voltage = tdsRaw * (5.0 / 1023.0);
+  float tds = voltage * 500;
+
+  // Water Flow
+  liters = flowPulse / 7.5;
+  flowPulse = 0;
+
+  // Ultrasonic Level
+  digitalWrite(TRIG_PIN,LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(TRIG_PIN,HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN,LOW);
+
+  long duration = pulseIn(ECHO_PIN,HIGH);
+  int distance = duration * 0.034 / 2;
+
+  // Pump Control Logic
+
+  if(distance < 30)
+  {
+    digitalWrite(RELAY_PUMP1,HIGH);
+  }
+  else
+  {
+    digitalWrite(RELAY_PUMP1,LOW);
+  }
+
+  if(tds < 300)
+  {
+    digitalWrite(RELAY_PUMP2,HIGH);
+  }
+  else
+  {
+    digitalWrite(RELAY_PUMP2,LOW);
+  }
+
+  // LCD Display
+
+  lcd.clear();
+
+  lcd.setCursor(0,0);
+  lcd.print("T:");
+  lcd.print(temperature);
+  lcd.print("C ");
+
+  lcd.print("TDS:");
+  lcd.print(tds);
+
+  lcd.setCursor(0,1);
+  lcd.print("L:");
+  lcd.print(liters);
+
+  lcd.print(" Lv:");
+  lcd.print(distance);
+
+  delay(2000);
+
+}

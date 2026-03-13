@@ -1,0 +1,70 @@
+/*
+PROJECT: Smart Bike Safety System
+CODE FOR: ACCIDENT DETECTION UNIT
+
+FUNCTION:
+1. Accident detect karega
+2. GPS se location lega
+3. 4G module se SMS bhejega
+*/
+
+#include <Wire.h>
+#include <TinyGPS++.h>
+
+TinyGPSPlus gps;
+
+int vibrationSensor = 2;
+int buzzer = 8;
+
+void setup() {
+
+  Serial.begin(9600);        // GPS
+  Serial1.begin(115200);     // A7672S
+
+  pinMode(vibrationSensor, INPUT);
+  pinMode(buzzer, OUTPUT);
+
+  delay(5000);
+
+  Serial1.println("AT");
+  delay(1000);
+}
+
+void loop() {
+
+  int crash = digitalRead(vibrationSensor);
+
+  while (Serial.available()) {
+    gps.encode(Serial.read());
+  }
+
+  if (crash == HIGH) {
+
+    digitalWrite(buzzer, HIGH);
+
+    float lat = gps.location.lat();
+    float lon = gps.location.lng();
+
+    sendSMS(lat, lon);
+
+    delay(20000);
+  }
+
+}
+
+void sendSMS(float lat, float lon) {
+
+  Serial1.println("AT+CMGF=1");
+  delay(1000);
+
+  Serial1.println("AT+CMGS=\"+911234567890\"");
+  delay(1000);
+
+  Serial1.print("Accident Detected! Location: ");
+  Serial1.print("https://maps.google.com/?q=");
+  Serial1.print(lat);
+  Serial1.print(",");
+  Serial1.print(lon);
+
+  Serial1.write(26);
+}

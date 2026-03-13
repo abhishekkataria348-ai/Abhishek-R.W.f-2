@@ -1,0 +1,50 @@
+/*
+PROJECT: Smart Helmet Safety System
+CODE FOR: BIKE UNIT
+FUNCTION:
+Helmet unit se data receive karega
+Aur bike motor ko control karega
+*/
+
+int motorPin = 8;
+int buzzer = 9;
+int redLED = 10;
+int greenLED = 11;
+
+String data;
+
+void setup() {
+
+  pinMode(motorPin, OUTPUT);
+  pinMode(buzzer, OUTPUT);
+  pinMode(redLED, OUTPUT);
+  pinMode(greenLED, OUTPUT);
+
+  Serial.begin(9600);
+}
+
+void loop() {
+
+  if (Serial.available()) {
+
+    data = Serial.readStringUntil('\n');
+
+    if (data == "SAFE") {
+
+      digitalWrite(motorPin, HIGH);
+      digitalWrite(greenLED, HIGH);
+
+      digitalWrite(redLED, LOW);
+      digitalWrite(buzzer, LOW);
+    }
+
+    else {
+
+      digitalWrite(motorPin, LOW);
+      digitalWrite(greenLED, LOW);
+
+      digitalWrite(redLED, HIGH);
+      digitalWrite(buzzer, HIGH);
+    }
+  }
+}

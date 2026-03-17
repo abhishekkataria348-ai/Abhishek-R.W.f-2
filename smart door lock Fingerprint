@@ -1,0 +1,84 @@
+#define BLYNK_PRINT Serial
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+#include <SoftwareSerial.h>
+#include <Adafruit_Fingerprint.h>
+#include <DFRobotDFPlayerMini.h>
+
+// 1. अपनी वाई-फाई और ब्लिंक डिटेल्स यहाँ डालें
+char auth[] = "Your_Blynk_Auth_Token";
+char ssid[] = "Your_WiFi_Name";
+char pass[] = "Your_WiFi_Password";
+
+// 2. पिन कॉन्फ़िगरेशन
+SoftwareSerial fingerSerial(D3, D4); // RX, TX
+SoftwareSerial voiceSerial(D1, D2);  // RX, TX
+Adafruit_Fingerprint finger = Adafruit_Fingerprint(&fingerSerial);
+DFRobotDFPlayerMini myDFPlayer;
+
+const int relayPin = D5; // लॉक के लिए रिले
+
+void setup() {
+  Serial.begin(9600);
+  fingerSerial.begin(57600);
+  voiceSerial.begin(9600);
+  
+  pinMode(relayPin, OUTPUT);
+  digitalWrite(relayPin, LOW); // लॉक शुरू में बंद रहेगा
+
+  // ब्लिंक कनेक्ट करें
+  Blynk.begin(auth, ssid, pass);
+
+  // फिंगरप्रिंट सेंसर चेक करें
+  if (finger.verifyPassword()) {
+    Serial.println("Fingerprint Sensor Found!");
+  }
+
+  // वॉइस मॉड्यूल चेक करें
+  if (!myDFPlayer.begin(voiceSerial)) {
+    Serial.println("DFPlayer Error!");
+  }
+  myDFPlayer.volume(25); // आवाज़ का लेवल (0-30)
+}
+
+// 3. फोन से कंट्रोल (Blynk App Button on V1)
+BLYNK_WRITE(V1) {
+  int pinValue = param.asInt();
+  if (pinValue == 1) {
+    openDoor();
+  }
+}
+
+void loop() {
+  Blynk.run();
+  checkFingerprint();
+}
+
+// 4. दरवाज़ा खोलने और आवाज़ सुनाने का फंक्शन
+void openDoor() {
+  Serial.println("Access Granted!");
+  
+  // आवाज़ सुनाएँ: "Abhishek Kataria, aapka lab mein swagat hai"
+  // पक्का करें कि SD कार्ड में mp3 फोल्डर के अंदर 0001.mp3 फाइल है
+  myDFPlayer.play(1); 
+  
+  digitalWrite(relayPin, HIGH); // लॉक खोलें
+  delay(5000);                  // 5 सेकंड का समय
+  digitalWrite(relayPin, LOW);  // लॉक वापस बंद करें
+}
+
+// 5. फिंगरप्रिंट चेक करने का फंक्शन
+int checkFingerprint() {
+  uint8_t p = finger.getImage();
+  if (p != FINGERPRINT_OK) return -1;
+
+  p = finger.image2Tz();
+  if (p != FINGERPRINT_OK) return -1;
+
+  p = finger.fingerFastSearch();
+  if (p == FINGERPRINT_OK) {
+    openDoor();
+    return finger.fingerID;
+  }
+  return -1;
+}

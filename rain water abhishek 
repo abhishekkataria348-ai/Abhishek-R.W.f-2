@@ -1,0 +1,80 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// ===== LCD =====
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// ===== Temperature =====
+#define ONE_WIRE_BUS 2
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+
+// ===== TDS =====
+#define TDS_PIN A0
+
+// ===== Pumps =====
+#define PUMP1 7
+#define PUMP2 8
+
+unsigned long startTime;
+bool pump2On = false;
+
+void setup() {
+  Serial.begin(9600);
+
+  // LCD start
+  lcd.init();
+  lcd.backlight();
+
+  // Sensor start
+  sensors.begin();
+
+  // Pump pins
+  pinMode(PUMP1, OUTPUT);
+  pinMode(PUMP2, OUTPUT);
+
+  // Pump1 ON, Pump2 OFF
+  digitalWrite(PUMP1, LOW);
+  digitalWrite(PUMP2, HIGH);
+
+  startTime = millis();
+}
+
+void loop() {
+
+  // ===== Temperature =====
+  sensors.requestTemperatures();
+  float tempC = sensors.getTempCByIndex(0);
+
+  // ===== TDS =====
+  int tdsValue = analogRead(TDS_PIN);
+  float voltage = tdsValue * (5.0 / 1023.0);
+  float tds = voltage * 500;
+
+  // ===== Pump2 delay (5 sec) =====
+  if (!pump2On && (millis() - startTime > 5000)) {
+    digitalWrite(PUMP2, LOW);
+    pump2On = true;
+  }
+
+  // ===== LCD Display =====
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Temp:");
+  lcd.print(tempC);
+  lcd.print("C");
+
+  lcd.setCursor(0, 1);
+  lcd.print("TDS:");
+  lcd.print(tds);
+
+  // ===== Serial =====
+  Serial.print("Temp: ");
+  Serial.print(tempC);
+  Serial.print(" C | TDS: ");
+  Serial.println(tds);
+
+  delay(1000);
+}
